@@ -1,31 +1,42 @@
+# Automatically generated on 2021-05-02 UTC from https://codemagic.io/app/608e110d028729967e442bcc/settings
+# Note that this configuration is not an exact match to UI settings. Review and adjust as necessary.
+
 workflows:
-  my-workflow:
-    name: My workflow name
-    instance_type: mac_mini
+  default-workflow:
+    name: Default Workflow
     max_build_duration: 60
     environment:
-      vars:
-        PUBLIC_ENV_VAR: "value here"
       flutter: stable
       xcode: latest
-    cache:
-      cache_paths:
-        - ~/.pub-cache
-    triggering:
-      events:
-        - push
-      branch_patterns:
-        - pattern: '*'
-          include: true
-          source: true
-      cancel_previous_builds: false
+      cocoapods: default
     scripts:
-      - ...
+      - |
+        # set up debug keystore
+        rm -f ~/.android/debug.keystore
+        keytool -genkeypair \
+          -alias androiddebugkey \
+          -keypass android \
+          -keystore ~/.android/debug.keystore \
+          -storepass android \
+          -dname 'CN=Android Debug,O=Android,C=US' \
+          -keyalg 'RSA' \
+          -keysize 2048 \
+          -validity 10000
+      - |
+        # set up local properties
+        echo "flutter.sdk=$HOME/programs/flutter" > "$FCI_BUILD_DIR/android/local.properties"
+      - flutter packages pub get
+      - flutter build apk --debug
+      - find . -name "Podfile" -execdir pod install \;
+      - flutter build ios --debug --no-codesign
     artifacts:
+      - build/**/outputs/**/*.apk
       - build/**/outputs/**/*.aab
+      - build/**/outputs/**/mapping.txt
+      - build/ios/ipa/*.ipa
+      - /tmp/xcodebuild_logs/*.log
+      - flutter_drive.log
     publishing:
       email:
         recipients:
-          - name@example.com
-      scripts:
-        - echo 'Post-publish script'
+          - dylanjs2014@gmail.com
